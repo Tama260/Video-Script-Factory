@@ -1,1 +1,310 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Video Script Factory</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#f0f0f0;padding:40px 20px}h1{color:#e94560;margin-bottom:8px;font-size:2rem}.sub{color:#888;margin-bottom:32px;font-size:0.9rem}.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:20px;margin:12px 0;display:flex;justify-content:space-between;align-items:center}.card a{color:#e94560;text-decoration:none;font-weight:bold;font-size:0.95rem}.card a:hover{text-decoration:underline}.date{color:#555;font-size:0.8rem}footer{margin-top:48px;text-align:center;color:#444;font-size:0.75rem}</style></head><body><h1>&#127916; Video Script Factory</h1><p class="sub">AI-powered video production system &middot; by Daffa Novendra Aditama</p><div class="card"><a href="vid-mpgd78s0.html">AI Agents: The Future Is Now</a><span class="date">5/22/2026</span></div><footer>Powered by Groq AI &middot; Pollinations.ai &middot; Pipedream</footer></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Video Script Factory — AI Video Production</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#050505;color:#f0f0f0;min-height:100vh}
+.header{background:linear-gradient(135deg,#0f0f1a,#1a0f2e);padding:48px 40px;text-align:center;border-bottom:1px solid #2a2a3a;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at center,#e9456015 0%,transparent 60%);pointer-events:none}
+.header h1{font-size:2.4rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#fff,#e94560);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header p{color:#888;font-size:0.9rem;margin-bottom:24px}
+.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.badge{background:#1a1a2e;border:1px solid #2a2a4a;color:#a0a0c0;padding:4px 14px;border-radius:20px;font-size:0.75rem}
+.badge.red{border-color:#e94560;color:#e94560;background:#1a0a0f}
+.container{max-width:1000px;margin:0 auto;padding:32px 20px}
+.generator-card{background:#111;border:1px solid #2a2a2a;border-radius:16px;padding:32px;margin-bottom:32px}
+.generator-card h2{color:#e94560;font-size:1.2rem;margin-bottom:24px;display:flex;align-items:center;gap:8px}
+.field{margin-bottom:20px}
+.field label{display:block;font-size:0.75rem;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em}
+.field textarea,.field input,.field select{width:100%;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:8px;color:#f0f0f0;padding:12px 14px;font-size:0.9rem;font-family:inherit;outline:none;transition:border 0.2s}
+.field textarea{min-height:80px;resize:vertical}
+.field textarea:focus,.field input:focus,.field select:focus{border-color:#e94560}
+.formats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:20px}
+.fmt{background:#0a0a0a;border:1px solid #2a2a2a;border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:all 0.2s}
+.fmt:hover{border-color:#e94560}
+.fmt.active{border-color:#e94560;background:#1a0a0f;color:#e94560}
+.fmt-icon{font-size:1.4rem;display:block;margin-bottom:6px}
+.fmt-name{font-size:0.78rem}
+.fmt-dur{font-size:0.68rem;color:#666;margin-top:2px}
+.btn-generate{width:100%;background:linear-gradient(135deg,#e94560,#c62a47);color:white;border:none;border-radius:10px;padding:16px;font-size:1rem;font-weight:700;cursor:pointer;transition:opacity 0.2s;letter-spacing:0.02em}
+.btn-generate:hover{opacity:0.9}
+.btn-generate:disabled{opacity:0.4;cursor:not-allowed}
+.status{margin-top:16px;padding:14px;border-radius:8px;font-size:0.875rem;display:none}
+.status.loading{background:#0a1628;border:1px solid #1a4a8a;color:#60a5fa;display:block}
+.status.success{background:#0a2818;border:1px solid #166534;color:#86efac;display:block}
+.status.error{background:#1a0a0a;border:1px solid #991b1b;color:#fca5a5;display:block}
+.result-link{display:block;margin-top:10px;color:#e94560;font-weight:600;word-break:break-all;text-decoration:none}
+.result-link:hover{text-decoration:underline}
+.progress{display:none;margin-top:12px}
+.progress.show{display:block}
+.progress-bar{background:#1a1a1a;border-radius:4px;height:4px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#e94560,#a855f7);border-radius:4px;animation:progress 45s linear forwards}
+@keyframes progress{0%{width:0%}90%{width:85%}100%{width:90%}}
+.progress-text{font-size:0.75rem;color:#666;margin-top:6px;text-align:center}
+.divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0}
+.productions-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.productions-header h2{color:#f0f0f0;font-size:1.1rem;font-weight:600}
+.prod-count{background:#1a1a1a;color:#888;padding:4px 12px;border-radius:20px;font-size:0.75rem}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.prod-card{background:#111;border:1px solid #1a1a1a;border-radius:12px;overflow:hidden;transition:border 0.2s;text-decoration:none;display:block}
+.prod-card:hover{border-color:#e94560}
+.prod-thumb{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1a1a2e,#0f0f1a);display:flex;align-items:center;justify-content:center;font-size:2rem;position:relative}
+.prod-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.prod-body{padding:16px}
+.prod-title{font-size:0.9rem;font-weight:600;color:#f0f0f0;margin-bottom:6px;line-height:1.4}
+.prod-meta{display:flex;gap:6px;flex-wrap:wrap}
+.prod-tag{background:#1a1a1a;color:#888;padding:2px 8px;border-radius:10px;font-size:0.68rem}
+.prod-tag.red{background:#1a0a0f;color:#e94560;border:1px solid #e9456040}
+.prod-date{color:#555;font-size:0.72rem;margin-top:8px}
+.empty-state{text-align:center;padding:48px;color:#555}
+.empty-state p{margin-top:8px;font-size:0.85rem}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid #60a5fa40;border-top-color:#60a5fa;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1px solid #111;margin-top:16px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Video Script Factory</h1>
+  <p>AI-powered video production system by Daffa Novendra Aditama</p>
+  <div class="badges">
+    <span class="badge red">LIVE SYSTEM</span>
+    <span class="badge">Groq LLaMA 3.3 70B</span>
+    <span class="badge">Pollinations.ai</span>
+    <span class="badge">Pipedream</span>
+    <span class="badge">Under 60 seconds</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="generator-card">
+    <h2>Generate Video Script Package</h2>
+
+    <div class="field">
+      <label>Video Topic</label>
+      <textarea id="topic" placeholder="Example: Why AI will replace 50% of jobs by 2030">The Future of AI Agents in 2026</textarea>
+    </div>
+
+    <div class="field">
+      <label>Select Format</label>
+      <div class="formats">
+        <div class="fmt active" onclick="selectFormat('youtube_short',this)">
+          <span class="fmt-icon">▶</span>
+          <div class="fmt-name">YouTube Short</div>
+          <div class="fmt-dur">60 seconds</div>
+        </div>
+        <div class="fmt" onclick="selectFormat('tiktok',this)">
+          <span class="fmt-icon">◆</span>
+          <div class="fmt-name">TikTok</div>
+          <div class="fmt-dur">30-60 seconds</div>
+        </div>
+        <div class="fmt" onclick="selectFormat('instagram_reel',this)">
+          <span class="fmt-icon">◉</span>
+          <div class="fmt-name">Instagram Reel</div>
+          <div class="fmt-dur">30 seconds</div>
+        </div>
+        <div class="fmt" onclick="selectFormat('linkedin_video',this)">
+          <span class="fmt-icon">▣</span>
+          <div class="fmt-name">LinkedIn Video</div>
+          <div class="fmt-dur">2-3 minutes</div>
+        </div>
+        <div class="fmt" onclick="selectFormat('youtube_long',this)">
+          <span class="fmt-icon">▶▶</span>
+          <div class="fmt-name">YouTube Long</div>
+          <div class="fmt-dur">8-10 minutes</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Target Audience</label>
+      <input type="text" id="audience" value="tech-savvy professionals" placeholder="e.g. developers, marketers, beginners">
+    </div>
+
+    <div class="field">
+      <label>Tone</label>
+      <select id="tone">
+        <option value="educational_entertaining">Educational + Entertaining</option>
+        <option value="professional">Professional</option>
+        <option value="casual_fun">Casual + Fun</option>
+        <option value="inspirational">Inspirational</option>
+        <option value="news_style">News Style</option>
+      </select>
+    </div>
+
+    <button class="btn-generate" id="genBtn" onclick="generate()">
+      Generate Video Script Package
+    </button>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+      <div class="progress-text" id="progressText">Analyzing topic...</div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="productions-header">
+    <h2>Production Archive</h2>
+    <span class="prod-count" id="prodCount">Loading...</span>
+  </div>
+
+  <div class="prod-grid" id="prodGrid">
+    <div class="empty-state"><p>Loading productions...</p></div>
+  </div>
+
+</div>
+
+<footer>
+  <p>Video Script Factory · by Daffa Novendra Aditama · AI Automation Engineer</p>
+  <p style="margin-top:4px">Powered by Groq LLaMA 3.3 70B · Pollinations.ai · Pipedream · GitHub Pages</p>
+</footer>
+
+<script>
+var selectedFormat = 'youtube_short';
+var WEBHOOK_URL = 'https://eo827o195sps4vf.m.pipedream.net';
+
+var progressMessages = [
+  'Analyzing topic...',
+  'Generating script structure...',
+  'Writing scene by scene...',
+  'Creating storyboard prompts...',
+  'Generating AI visuals...',
+  'Building production package...',
+  'Publishing to GitHub Pages...',
+  'Almost done...'
+];
+var progressInterval = null;
+var progressIndex = 0;
+
+function selectFormat(fmt, el) {
+  selectedFormat = fmt;
+  var btns = document.querySelectorAll('.fmt');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  el.classList.add('active');
+}
+
+function showStatus(type, html) {
+  var el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.innerHTML = html;
+}
+
+function startProgress() {
+  var prog = document.getElementById('progress');
+  prog.classList.add('show');
+  progressIndex = 0;
+  document.getElementById('progressText').textContent = progressMessages[0];
+  progressInterval = setInterval(function() {
+    progressIndex++;
+    if (progressIndex < progressMessages.length) {
+      document.getElementById('progressText').textContent = progressMessages[progressIndex];
+    }
+  }, 6000);
+}
+
+function stopProgress() {
+  clearInterval(progressInterval);
+  document.getElementById('progress').classList.remove('show');
+}
+
+function generate() {
+  var topic = document.getElementById('topic').value.trim();
+  var audience = document.getElementById('audience').value.trim();
+  var tone = document.getElementById('tone').value;
+  var btn = document.getElementById('genBtn');
+
+  if (!topic) {
+    showStatus('error', 'Please enter a video topic first.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Generating... (30-60 seconds)';
+  startProgress();
+  showStatus('loading', '<span class="spinner"></span>Pipeline running — generating your complete video production package...');
+
+  var url = WEBHOOK_URL + '?topic=' + encodeURIComponent(topic) + '&format=' + encodeURIComponent(selectedFormat) + '&audience=' + encodeURIComponent(audience) + '&tone=' + encodeURIComponent(tone);
+
+  fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = 'Generate Video Script Package';
+      stopProgress();
+      if (data && data.url) {
+        showStatus('success', 'Production complete! ' + '<a class="result-link" href="' + data.url + '" target="_blank">Open Production Package: ' + data.url + '</a>');
+        setTimeout(function() { loadProductions(); }, 3000);
+      } else {
+        showStatus('success', 'Pipeline triggered successfully! Check below for your new production or open your Telegram channel for the notification.');
+        setTimeout(function() { loadProductions(); }, 5000);
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = 'Generate Video Script Package';
+      stopProgress();
+      showStatus('success', 'Pipeline triggered! Your production package will appear in the archive below shortly. Check Telegram for instant notification.');
+      setTimeout(function() { loadProductions(); }, 8000);
+    });
+}
+
+function loadProductions() {
+  var repoOwner = 'Tama260';
+  var repoName = 'Video-Script-Factory';
+  var apiUrl = 'https://api.github.com/repos/' + repoOwner + '/' + repoName + '/contents/docs';
+
+  fetch(apiUrl)
+    .then(function(res) { return res.json(); })
+    .then(function(files) {
+      var productions = [];
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (f.name !== 'index.html' && f.name !== 'generator.html' && f.name.indexOf('.html') !== -1) {
+          productions.push({
+            name: f.name,
+            url: 'https://tama260.github.io/Video-Script-Factory/' + f.name,
+            sha: f.sha
+          });
+        }
+      }
+
+      document.getElementById('prodCount').textContent = productions.length + ' productions';
+
+      if (productions.length === 0) {
+        document.getElementById('prodGrid').innerHTML = '<div class="empty-state"><p>No productions yet.</p><p>Generate your first video script package above.</p></div>';
+        return;
+      }
+
+      var html = '';
+      for (var j = 0; j < productions.length; j++) {
+        var p = productions[j];
+        var displayName = p.name.replace('.html', '').replace(/-/g, ' ').toUpperCase();
+        html += '<a class="prod-card" href="' + p.url + '" target="_blank">';
+        html += '<div class="prod-thumb"><span>&#127916;</span></div>';
+        html += '<div class="prod-body">';
+        html += '<div class="prod-title">' + displayName + '</div>';
+        html += '<div class="prod-meta">';
+        html += '<span class="prod-tag red">AI Generated</span>';
+        html += '<span class="prod-tag">Video Script</span>';
+        html += '</div>';
+        html += '</div></a>';
+      }
+      document.getElementById('prodGrid').innerHTML = html;
+    })
+    .catch(function(err) {
+      document.getElementById('prodGrid').innerHTML = '<div class="empty-state"><p>Could not load productions.</p></div>';
+    });
+}
+
+loadProductions();
+</script>
+</body>
+</html>
