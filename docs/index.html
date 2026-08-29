@@ -46,12 +46,16 @@ body{font-family:system-ui,sans-serif;background:#050505;color:#f0f0f0;min-heigh
 @keyframes progress{0%{width:0%}90%{width:85%}100%{width:90%}}
 .progress-text{font-size:0.75rem;color:#666;margin-top:6px;text-align:center}
 .divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0}
-.productions-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.productions-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .productions-header h2{color:#f0f0f0;font-size:1.1rem;font-weight:600}
-.prod-count{background:#1a1a1a;color:#888;padding:4px 12px;border-radius:20px;font-size:0.75rem}
+.productions-header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.prod-count{background:#1a1a1a;color:#888;padding:4px 12px;border-radius:20px;font-size:0.75rem;white-space:nowrap}
+.sort-select{background:#111;border:1px solid #2a2a2a;color:#ccc;padding:6px 10px;border-radius:8px;font-size:0.78rem;outline:none;cursor:pointer}
+.sort-select:focus{border-color:#e94560}
 .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.prod-card{background:#111;border:1px solid #1a1a1a;border-radius:12px;overflow:hidden;transition:border 0.2s;text-decoration:none;display:block}
+.prod-card{background:#111;border:1px solid #1a1a1a;border-radius:12px;overflow:hidden;transition:border 0.2s;display:block;position:relative}
 .prod-card:hover{border-color:#e94560}
+.prod-card-link{text-decoration:none;color:inherit;display:block}
 .prod-thumb{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1a1a2e,#0f0f1a);display:flex;align-items:center;justify-content:center;font-size:2rem;position:relative}
 .prod-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
 .prod-body{padding:16px}
@@ -60,6 +64,10 @@ body{font-family:system-ui,sans-serif;background:#050505;color:#f0f0f0;min-heigh
 .prod-tag{background:#1a1a1a;color:#888;padding:2px 8px;border-radius:10px;font-size:0.68rem}
 .prod-tag.red{background:#1a0a0f;color:#e94560;border:1px solid #e9456040}
 .prod-date{color:#555;font-size:0.72rem;margin-top:8px}
+.prod-delete{position:absolute;top:10px;right:10px;background:#1a0a0a;border:1px solid #4a1a1a;color:#f0a0a0;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:0.85rem;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2;transition:all 0.15s}
+.prod-delete:hover{background:#991b1b;border-color:#991b1b;color:#fff}
+.prod-delete:disabled{opacity:0.4;cursor:wait}
+.prod-card.deleting{opacity:0.4;pointer-events:none}
 .empty-state{text-align:center;padding:48px;color:#555}
 .empty-state p{margin-top:8px;font-size:0.85rem}
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid #60a5fa40;border-top-color:#60a5fa;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle}
@@ -155,7 +163,13 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 
   <div class="productions-header">
     <h2>Production Archive</h2>
-    <span class="prod-count" id="prodCount">Loading...</span>
+    <div class="productions-header-right">
+      <select class="sort-select" id="sortSelect" onchange="onSortChange()">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
+      <span class="prod-count" id="prodCount">Loading...</span>
+    </div>
   </div>
 
   <div class="prod-grid" id="prodGrid">
@@ -173,6 +187,15 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 var selectedFormat = 'youtube_short';
 var WEBHOOK_URL = 'https://eovbyamstvzz76c.m.pipedream.net';
 
+// TODO: replace with your own delete-production Pipedream HTTP trigger URL
+// (see delete_production.mjs / README for how to set that workflow up).
+var DELETE_WEBHOOK_URL = 'https://eoxqha61wholeto.m.pipedream.net';
+// TODO: set this to match the DELETE_SECRET env var on that Pipedream workflow.
+// Note: anything shipped in front-end JS is technically visible to anyone who
+// views page source — this is a basic guard against accidental/casual deletes,
+// not real access control. Don't reuse this value for anything sensitive.
+var DELETE_SECRET = 'vsf-delete-x7k2m9';
+
 var progressMessages = [
   'Analyzing topic...',
   'Generating script structure...',
@@ -185,6 +208,9 @@ var progressMessages = [
 ];
 var progressInterval = null;
 var progressIndex = 0;
+
+var allProductions = [];   // cached, enriched with title/date once loaded
+var currentSort = 'newest';
 
 function selectFormat(fmt, el) {
   selectedFormat = fmt;
@@ -235,9 +261,8 @@ function generate() {
 
   // NOTE: the topic typed above is forwarded verbatim as the `topic` query param.
   // If the generated production still shows a different/default topic, the mismatch
-  // is happening inside the Pipedream workflow's AI prompt step (generate_video_script),
-  // not here — check that step actually interpolates {{steps.trigger.event.query.topic}}
-  // (or equivalent) into the Groq prompt instead of a hardcoded example topic.
+  // is happening inside the Pipedream workflow's AI prompt step (generate_master_script),
+  // not here.
   var url = WEBHOOK_URL + '?topic=' + encodeURIComponent(topic) + '&format=' + encodeURIComponent(selectedFormat) + '&audience=' + encodeURIComponent(audience) + '&tone=' + encodeURIComponent(tone);
 
   fetch(url)
@@ -263,6 +288,103 @@ function generate() {
     });
 }
 
+// Pulls the embedded "Production ID: VID-XXXX - <date>" line and <h1> title
+// out of a production page's raw HTML so the archive can sort by real date
+// and show a nicer title than the raw filename.
+function enrichProduction(p) {
+  return fetch(p.download_url)
+    .then(function(res) { return res.text(); })
+    .then(function(html) {
+      var dateMatch = html.match(/Production ID:[^<]*-\s*([^<]+)</);
+      var titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
+      var parsedDate = dateMatch ? new Date(dateMatch[1].trim()) : null;
+      p.date = (parsedDate && !isNaN(parsedDate.getTime())) ? parsedDate : null;
+      p.title = titleMatch ? titleMatch[1].trim() : null;
+      return p;
+    })
+    .catch(function() {
+      p.date = null;
+      p.title = null;
+      return p;
+    });
+}
+
+function onSortChange() {
+  currentSort = document.getElementById('sortSelect').value;
+  renderProductions();
+}
+
+function renderProductions() {
+  var sorted = allProductions.slice();
+
+  sorted.sort(function(a, b) {
+    var aTime = a.date ? a.date.getTime() : null;
+    var bTime = b.date ? b.date.getTime() : null;
+    // Undated productions (couldn't parse a date) always sink to the bottom.
+    if (aTime === null && bTime === null) return 0;
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    return currentSort === 'oldest' ? aTime - bTime : bTime - aTime;
+  });
+
+  document.getElementById('prodCount').textContent = sorted.length + ' production' + (sorted.length === 1 ? '' : 's');
+
+  if (sorted.length === 0) {
+    document.getElementById('prodGrid').innerHTML = '<div class="empty-state"><p>No productions yet.</p><p>Generate your first video script package above.</p></div>';
+    return;
+  }
+
+  var html = '';
+  for (var j = 0; j < sorted.length; j++) {
+    var p = sorted[j];
+    var displayName = p.title || p.name.replace('.html', '').replace(/-/g, ' ').toUpperCase();
+    var dateLabel = p.date ? p.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Date unknown';
+
+    html += '<div class="prod-card" id="card_' + p.safeId + '">';
+    html += '<button class="prod-delete" title="Delete this production" onclick="deleteProduction(\'' + p.name + '\', \'' + p.safeId + '\')">&times;</button>';
+    html += '<a class="prod-card-link" href="' + p.url + '" target="_blank">';
+    html += '<div class="prod-thumb"><span>&#127916;</span></div>';
+    html += '<div class="prod-body">';
+    html += '<div class="prod-title">' + displayName + '</div>';
+    html += '<div class="prod-meta">';
+    html += '<span class="prod-tag red">AI Generated</span>';
+    html += '<span class="prod-tag">Video Script</span>';
+    html += '</div>';
+    html += '<div class="prod-date">' + dateLabel + '</div>';
+    html += '</div>';
+    html += '</a>';
+    html += '</div>';
+  }
+  document.getElementById('prodGrid').innerHTML = html;
+}
+
+function deleteProduction(fileName, safeId) {
+  if (!confirm('Delete "' + fileName + '" permanently? This removes the file from the GitHub repo and can\'t be undone.')) {
+    return;
+  }
+
+  var card = document.getElementById('card_' + safeId);
+  if (card) card.classList.add('deleting');
+
+  var url = DELETE_WEBHOOK_URL + '?file=' + encodeURIComponent(fileName) + '&key=' + encodeURIComponent(DELETE_SECRET);
+
+  fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data.success) {
+        allProductions = allProductions.filter(function(p) { return p.name !== fileName; });
+        renderProductions();
+      } else {
+        if (card) card.classList.remove('deleting');
+        alert('Could not delete "' + fileName + '": ' + (data && data.error ? data.error : 'unknown error'));
+      }
+    })
+    .catch(function(err) {
+      if (card) card.classList.remove('deleting');
+      alert('Delete request failed: ' + err.message + '. Check that DELETE_WEBHOOK_URL is set up correctly.');
+    });
+}
+
 function loadProductions() {
   var repoOwner = 'Tama260';
   var repoName = 'Video-Script-Factory';
@@ -278,33 +400,29 @@ function loadProductions() {
           productions.push({
             name: f.name,
             url: 'https://tama260.github.io/Video-Script-Factory/' + f.name,
-            sha: f.sha
+            download_url: f.download_url,
+            sha: f.sha,
+            safeId: f.name.replace(/[^a-zA-Z0-9]/g, '_'),
+            date: null,
+            title: null
           });
         }
       }
 
-      document.getElementById('prodCount').textContent = productions.length + ' productions';
-
       if (productions.length === 0) {
-        document.getElementById('prodGrid').innerHTML = '<div class="empty-state"><p>No productions yet.</p><p>Generate your first video script package above.</p></div>';
+        allProductions = [];
+        renderProductions();
         return;
       }
 
-      var html = '';
-      for (var j = 0; j < productions.length; j++) {
-        var p = productions[j];
-        var displayName = p.name.replace('.html', '').replace(/-/g, ' ').toUpperCase();
-        html += '<a class="prod-card" href="' + p.url + '" target="_blank">';
-        html += '<div class="prod-thumb"><span>&#127916;</span></div>';
-        html += '<div class="prod-body">';
-        html += '<div class="prod-title">' + displayName + '</div>';
-        html += '<div class="prod-meta">';
-        html += '<span class="prod-tag red">AI Generated</span>';
-        html += '<span class="prod-tag">Video Script</span>';
-        html += '</div>';
-        html += '</div></a>';
-      }
-      document.getElementById('prodGrid').innerHTML = html;
+      document.getElementById('prodCount').textContent = 'Loading dates...';
+
+      // Fetch each production's raw HTML in parallel to pull out its real
+      // publish date and title so sorting reflects when it was actually made.
+      Promise.all(productions.map(enrichProduction)).then(function(enriched) {
+        allProductions = enriched;
+        renderProductions();
+      });
     })
     .catch(function(err) {
       document.getElementById('prodGrid').innerHTML = '<div class="empty-state"><p>Could not load productions.</p></div>';
