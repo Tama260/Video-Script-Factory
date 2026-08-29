@@ -22,6 +22,7 @@ body{font-family:system-ui,sans-serif;background:#050505;color:#f0f0f0;min-heigh
 .field textarea,.field input,.field select{width:100%;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:8px;color:#f0f0f0;padding:12px 14px;font-size:0.9rem;font-family:inherit;outline:none;transition:border 0.2s}
 .field textarea{min-height:80px;resize:vertical}
 .field textarea:focus,.field input:focus,.field select:focus{border-color:#e94560}
+.field-hint{font-size:0.7rem;color:#555;margin-top:6px}
 .formats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:20px}
 .fmt{background:#0a0a0a;border:1px solid #2a2a2a;border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:all 0.2s}
 .fmt:hover{border-color:#e94560}
@@ -73,7 +74,7 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
   <p>AI-powered video production system by Daffa Novendra Aditama</p>
   <div class="badges">
     <span class="badge red">LIVE SYSTEM</span>
-    <span class="badge">Groq LLaMA 3.3 70B</span>
+    <span class="badge">Groq GPT-OSS 120B</span>
     <span class="badge">Pollinations.ai</span>
     <span class="badge">Pipedream</span>
     <span class="badge">Under 60 seconds</span>
@@ -87,7 +88,8 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 
     <div class="field">
       <label>Video Topic</label>
-      <textarea id="topic" placeholder="Example: Why AI will replace 50% of jobs by 2030">The Future of AI Agents in 2026</textarea>
+      <textarea id="topic" placeholder="Example: Why AI will replace 50% of jobs by 2030"></textarea>
+      <div class="field-hint">Type your own topic — nothing is pre-filled, so whatever you enter here is exactly what gets sent to the generator.</div>
     </div>
 
     <div class="field">
@@ -123,7 +125,7 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 
     <div class="field">
       <label>Target Audience</label>
-      <input type="text" id="audience" value="tech-savvy professionals" placeholder="e.g. developers, marketers, beginners">
+      <input type="text" id="audience" placeholder="e.g. developers, marketers, beginners">
     </div>
 
     <div class="field">
@@ -164,7 +166,7 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 
 <footer>
   <p>Video Script Factory · by Daffa Novendra Aditama · AI Automation Engineer</p>
-  <p style="margin-top:4px">Powered by Groq LLaMA 3.3 70B · Pollinations.ai · Pipedream · GitHub Pages</p>
+  <p style="margin-top:4px">Powered by Groq GPT-OSS 120B · Pollinations.ai · Pipedream · GitHub Pages</p>
 </footer>
 
 <script>
@@ -217,20 +219,25 @@ function stopProgress() {
 
 function generate() {
   var topic = document.getElementById('topic').value.trim();
-  var audience = document.getElementById('audience').value.trim();
+  var audience = document.getElementById('audience').value.trim() || 'general audience';
   var tone = document.getElementById('tone').value;
   var btn = document.getElementById('genBtn');
 
   if (!topic) {
-    showStatus('error', 'Please enter a video topic first.');
+    showStatus('error', 'Please enter a video topic first — the field is intentionally left blank so nothing gets generated without your input.');
     return;
   }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Generating... (30-60 seconds)';
   startProgress();
-  showStatus('loading', '<span class="spinner"></span>Pipeline running — generating your complete video production package...');
+  showStatus('loading', '<span class="spinner"></span>Pipeline running — generating your complete video production package for: "' + topic + '"...');
 
+  // NOTE: the topic typed above is forwarded verbatim as the `topic` query param.
+  // If the generated production still shows a different/default topic, the mismatch
+  // is happening inside the Pipedream workflow's AI prompt step (generate_video_script),
+  // not here — check that step actually interpolates {{steps.trigger.event.query.topic}}
+  // (or equivalent) into the Groq prompt instead of a hardcoded example topic.
   var url = WEBHOOK_URL + '?topic=' + encodeURIComponent(topic) + '&format=' + encodeURIComponent(selectedFormat) + '&audience=' + encodeURIComponent(audience) + '&tone=' + encodeURIComponent(tone);
 
   fetch(url)
