@@ -185,16 +185,16 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 
 <script>
 var selectedFormat = 'youtube_short';
-var WEBHOOK_URL = 'https://eovbyamstvzz76c.m.pipedream.net';
+var WEBHOOK_URL = 'https://eo827o195sps4vf.m.pipedream.net';
 
 // TODO: replace with your own delete-production Pipedream HTTP trigger URL
 // (see delete_production.mjs / README for how to set that workflow up).
-var DELETE_WEBHOOK_URL = 'https://eoxqha61wholeto.m.pipedream.net';
+var DELETE_WEBHOOK_URL = 'https://REPLACE-WITH-YOUR-DELETE-WEBHOOK.m.pipedream.net';
 // TODO: set this to match the DELETE_SECRET env var on that Pipedream workflow.
 // Note: anything shipped in front-end JS is technically visible to anyone who
 // views page source — this is a basic guard against accidental/casual deletes,
 // not real access control. Don't reuse this value for anything sensitive.
-var DELETE_SECRET = 'vsf-delete-x7k2m9';
+var DELETE_SECRET = 'REPLACE-WITH-YOUR-SHARED-SECRET';
 
 var progressMessages = [
   'Analyzing topic...',
@@ -295,7 +295,10 @@ function enrichProduction(p) {
   return fetch(p.download_url)
     .then(function(res) { return res.text(); })
     .then(function(html) {
-      var dateMatch = html.match(/Production ID:[^<]*-\s*([^<]+)</);
+      // Matches "Production ID: VID-XXXX - <date>" (older pages) AND the
+      // current build_html_dashboard output "VID-XXXX - <date>" without the
+      // label — anchored on the VID- prefix so both formats parse correctly.
+      var dateMatch = html.match(/VID-[A-Z0-9]+\s*-\s*([^<]+)</);
       var titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
       var parsedDate = dateMatch ? new Date(dateMatch[1].trim()) : null;
       p.date = (parsedDate && !isNaN(parsedDate.getTime())) ? parsedDate : null;
