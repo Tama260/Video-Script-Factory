@@ -55,6 +55,17 @@ body{font-family:system-ui,sans-serif;background:#050505;color:#f0f0f0;min-heigh
 .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .prod-card{background:#111;border:1px solid #1a1a1a;border-radius:12px;overflow:hidden;transition:border 0.2s;display:block;position:relative}
 .prod-card:hover{border-color:#e94560}
+.prod-card.selected{border-color:#e94560}
+.prod-select{position:absolute;top:10px;left:10px;width:20px;height:20px;z-index:2;cursor:pointer;accent-color:#e94560}
+.bulk-bar{display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#1a0a0f;border:1px solid #e9456055;border-radius:10px;padding:12px 16px;margin-bottom:16px}
+.bulk-bar.show{display:flex}
+.bulk-bar span{font-size:0.85rem;color:#f0a0a0}
+.bulk-bar-actions{display:flex;gap:8px}
+.btn-bulk-delete{background:#991b1b;border:1px solid #991b1b;color:#fff;padding:8px 16px;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600}
+.btn-bulk-delete:hover{background:#c62a2a}
+.btn-bulk-delete:disabled{opacity:0.5;cursor:wait}
+.btn-bulk-clear{background:transparent;border:1px solid #444;color:#aaa;padding:8px 16px;border-radius:8px;font-size:0.8rem;cursor:pointer}
+.btn-bulk-clear:hover{border-color:#888;color:#fff}
 .prod-card-link{text-decoration:none;color:inherit;display:block}
 .prod-thumb{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1a1a2e,#0f0f1a);display:flex;align-items:center;justify-content:center;font-size:2rem;position:relative}
 .prod-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
@@ -172,6 +183,14 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
     </div>
   </div>
 
+  <div class="bulk-bar" id="bulkBar">
+    <span id="bulkCount">0 selected</span>
+    <div class="bulk-bar-actions">
+      <button class="btn-bulk-clear" onclick="clearSelection()">Clear</button>
+      <button class="btn-bulk-delete" id="bulkDeleteBtn" onclick="deleteSelected()">Delete Selected</button>
+    </div>
+  </div>
+
   <div class="prod-grid" id="prodGrid">
     <div class="empty-state"><p>Loading productions...</p></div>
   </div>
@@ -185,16 +204,16 @@ footer{text-align:center;padding:32px;color:#333;font-size:0.75rem;border-top:1p
 
 <script>
 var selectedFormat = 'youtube_short';
-var WEBHOOK_URL = 'https://eovbyamstvzz76c.m.pipedream.net';
+var WEBHOOK_URL = 'https://eo827o195sps4vf.m.pipedream.net';
 
 // TODO: replace with your own delete-production Pipedream HTTP trigger URL
 // (see delete_production.mjs / README for how to set that workflow up).
-var DELETE_WEBHOOK_URL = 'https://eoxqha61wholeto.m.pipedream.net';
+var DELETE_WEBHOOK_URL = 'https://REPLACE-WITH-YOUR-DELETE-WEBHOOK.m.pipedream.net';
 // TODO: set this to match the DELETE_SECRET env var on that Pipedream workflow.
 // Note: anything shipped in front-end JS is technically visible to anyone who
 // views page source — this is a basic guard against accidental/casual deletes,
 // not real access control. Don't reuse this value for anything sensitive.
-var DELETE_SECRET = 'vsf-delete-x7k2m9';
+var DELETE_SECRET = 'REPLACE-WITH-YOUR-SHARED-SECRET';
 
 var progressMessages = [
   'Analyzing topic...',
@@ -211,6 +230,7 @@ var progressIndex = 0;
 
 var allProductions = [];   // cached, enriched with title/date once loaded
 var currentSort = 'newest';
+var selectedFiles = new Set(); // file names currently checked for bulk delete
 
 function selectFormat(fmt, el) {
   selectedFormat = fmt;
@@ -288,9 +308,9 @@ function generate() {
     });
 }
 
-// Pulls the embedded "Production ID: VID-XXXX - <date>" line and <h1> title
-// out of a production page's raw HTML so the archive can sort by real date
-// and show a nicer title than the raw filename.
+// Pulls the embedded "Production ID: VID-XXXX - <date>" line, <h1> title,
+// and first storyboard image out of a production page's raw HTML so the
+// archive can sort by real date, show a nicer title, and preview a thumbnail.
 function enrichProduction(p) {
   return fetch(p.download_url)
     .then(function(res) { return res.text(); })
@@ -300,14 +320,17 @@ function enrichProduction(p) {
       // label — anchored on the VID- prefix so both formats parse correctly.
       var dateMatch = html.match(/VID-[A-Z0-9]+\s*-\s*([^<]+)</);
       var titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
+      var imgMatch = html.match(/<img[^>]+src="([^"]+)"/);
       var parsedDate = dateMatch ? new Date(dateMatch[1].trim()) : null;
       p.date = (parsedDate && !isNaN(parsedDate.getTime())) ? parsedDate : null;
       p.title = titleMatch ? titleMatch[1].trim() : null;
+      p.thumbnail = imgMatch ? imgMatch[1] : null;
       return p;
     })
     .catch(function() {
       p.date = null;
       p.title = null;
+      p.thumbnail = null;
       return p;
     });
 }
@@ -343,10 +366,15 @@ function renderProductions() {
     var displayName = p.title || p.name.replace('.html', '').replace(/-/g, ' ').toUpperCase();
     var dateLabel = p.date ? p.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Date unknown';
 
-    html += '<div class="prod-card" id="card_' + p.safeId + '">';
+    html += '<div class="prod-card' + (selectedFiles.has(p.name) ? ' selected' : '') + '" id="card_' + p.safeId + '">';
+    html += '<input type="checkbox" class="prod-select" title="Select for bulk delete" ' + (selectedFiles.has(p.name) ? 'checked' : '') + ' onclick="toggleSelect(\'' + p.name + '\', \'' + p.safeId + '\')">';
     html += '<button class="prod-delete" title="Delete this production" onclick="deleteProduction(\'' + p.name + '\', \'' + p.safeId + '\')">&times;</button>';
     html += '<a class="prod-card-link" href="' + p.url + '" target="_blank">';
-    html += '<div class="prod-thumb"><span>&#127916;</span></div>';
+    html += '<div class="prod-thumb"><span>&#127916;</span>';
+    if (p.thumbnail) {
+      html += '<img src="' + p.thumbnail + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove();">';
+    }
+    html += '</div>';
     html += '<div class="prod-body">';
     html += '<div class="prod-title">' + displayName + '</div>';
     html += '<div class="prod-meta">';
@@ -359,6 +387,47 @@ function renderProductions() {
     html += '</div>';
   }
   document.getElementById('prodGrid').innerHTML = html;
+  updateBulkBar();
+}
+
+function toggleSelect(fileName, safeId) {
+  if (selectedFiles.has(fileName)) {
+    selectedFiles.delete(fileName);
+  } else {
+    selectedFiles.add(fileName);
+  }
+  var card = document.getElementById('card_' + safeId);
+  if (card) card.classList.toggle('selected', selectedFiles.has(fileName));
+  updateBulkBar();
+}
+
+function clearSelection() {
+  selectedFiles.clear();
+  renderProductions();
+}
+
+function updateBulkBar() {
+  var bar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = selectedFiles.size + ' selected';
+  bar.classList.toggle('show', selectedFiles.size > 0);
+}
+
+// Core delete call shared by the single ✕ button and bulk delete — no
+// confirm() here, callers are responsible for confirming first.
+function requestDelete(fileName) {
+  var url = DELETE_WEBHOOK_URL + '?file=' + encodeURIComponent(fileName) + '&key=' + encodeURIComponent(DELETE_SECRET);
+  return fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data.success) {
+        allProductions = allProductions.filter(function(p) { return p.name !== fileName; });
+        return { ok: true };
+      }
+      return { ok: false, error: (data && data.error) ? data.error : 'unknown error' };
+    })
+    .catch(function(err) {
+      return { ok: false, error: err.message };
+    });
 }
 
 function deleteProduction(fileName, safeId) {
@@ -369,23 +438,44 @@ function deleteProduction(fileName, safeId) {
   var card = document.getElementById('card_' + safeId);
   if (card) card.classList.add('deleting');
 
-  var url = DELETE_WEBHOOK_URL + '?file=' + encodeURIComponent(fileName) + '&key=' + encodeURIComponent(DELETE_SECRET);
-
-  fetch(url)
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (data && data.success) {
-        allProductions = allProductions.filter(function(p) { return p.name !== fileName; });
-        renderProductions();
-      } else {
-        if (card) card.classList.remove('deleting');
-        alert('Could not delete "' + fileName + '": ' + (data && data.error ? data.error : 'unknown error'));
-      }
-    })
-    .catch(function(err) {
+  requestDelete(fileName).then(function(result) {
+    if (result.ok) {
+      selectedFiles.delete(fileName);
+      updateBulkBar();
+      renderProductions();
+    } else {
       if (card) card.classList.remove('deleting');
-      alert('Delete request failed: ' + err.message + '. Check that DELETE_WEBHOOK_URL is set up correctly.');
-    });
+      alert('Could not delete "' + fileName + '": ' + result.error);
+    }
+  });
+}
+
+async function deleteSelected() {
+  var files = Array.from(selectedFiles);
+  if (files.length === 0) return;
+  if (!confirm('Delete ' + files.length + ' selected production(s) permanently? This can\'t be undone.')) {
+    return;
+  }
+
+  var btn = document.getElementById('bulkDeleteBtn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+
+  var failures = [];
+  for (var i = 0; i < files.length; i++) {
+    var result = await requestDelete(files[i]);
+    if (!result.ok) failures.push(files[i] + ' (' + result.error + ')');
+  }
+
+  selectedFiles.clear();
+  btn.disabled = false;
+  btn.textContent = 'Delete Selected';
+  updateBulkBar();
+  renderProductions();
+
+  if (failures.length > 0) {
+    alert('Some productions could not be deleted:\n' + failures.join('\n'));
+  }
 }
 
 function loadProductions() {
