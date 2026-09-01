@@ -1,21 +1,21 @@
 # 🎬 Video Script Factory
 
-> AI-powered video production system that transforms any topic into a complete, production-ready video package — script, storyboard, voiceover, and platform-optimized content — in under 60 seconds.
+> AI-powered video production system that turns any topic into a complete, production-ready video package — script, AI storyboard, and platform-optimized content — in under 60 seconds, published automatically with zero manual work.
 
-**Generator App (create a new production):** [videoscript-factory.netlify.app](https://videoscript-factory.netlify.app/)
-**Production Archive (published video packages):** [tama260.github.io/Video-Script-Factory](https://tama260.github.io/Video-Script-Factory/)
+**Live App:** [tama260.github.io/Video-Script-Factory](https://tama260.github.io/Video-Script-Factory/)
 
 ---
 
 ## What This System Does
 
-Input one topic. Get a complete video production package in under 60 seconds:
+Type one topic, pick a format, and get a full video production package back:
 
-- Full scene-by-scene script with voiceover text
-- AI-generated storyboard images for each scene
-- Platform-optimized descriptions and tags
-- Hook, CTA, and viral elements checklist
-- Published automatically to GitHub Pages with a public URL
+- Scene-by-scene script with exact voiceover lines
+- AI-generated storyboard image for every scene
+- Platform-ready description, tags, hook, and CTA
+- A standalone, shareable HTML page for the finished package
+- Instant notification with a preview posted to Telegram
+- Auto-published to the public Production Archive — sortable by date, with thumbnails, and one-click (or bulk) delete
 
 ---
 
@@ -23,106 +23,95 @@ Input one topic. Get a complete video production package in under 60 seconds:
 
 | Format | Duration | Scenes |
 |---|---|---|
-| YouTube Short | 60 seconds | 6 scenes |
-| TikTok | 30-60 seconds | 5 scenes |
-| Instagram Reel | 30 seconds | 4 scenes |
-| LinkedIn Video | 2-3 minutes | 8 scenes |
-| YouTube Long Form | 8-10 minutes | 15 scenes |
+| YouTube Short | 60 seconds | 6 |
+| TikTok | 30–60 seconds | 5 |
+| Instagram Reel | 30 seconds | 4 |
+| LinkedIn Video | 2–3 minutes | 8 |
+| YouTube Long Form | 8–10 minutes | 15 |
 
 ---
 
 ## System Architecture
 
-[Generator App — Netlify]
-↓
-[User submits topic, format, audience, tone] — forwarded as query params, nothing pre-filled or hardcoded
-↓
-[Pipedream Webhook Trigger] (WF1 - Video Script Factory)
-↓
-[parse_request] — validates/normalizes the incoming query params
-↓
-[generate_master_script] — Groq `openai/gpt-oss-120b` writes the scene-by-scene script, hook, tags, CTA as JSON
-↓
-[generate_storyboard_images] — Pollinations.ai renders an AI image per scene
-↓
-[build_html_dashboard] — assembles the script, storyboard, and platform-optimized copy into a standalone HTML page
-↓
-[publish_to_github_pages] — commits the page to `docs/` and returns its public URL
-↓
-[Production Archive — GitHub Pages] — every published package is listed, sortable by date, and deletable from the generator app
+```
+User submits topic + format + audience + tone
+        │
+        ▼
+Pipedream WF1 — Video Script Factory   (HTTP trigger)
+  ├─ parse_request          → validates/normalizes the input
+  ├─ generate_master_script → Groq (openai/gpt-oss-120b) writes the script as JSON
+  ├─ generate_storyboard_images → Pollinations.ai renders one image per scene
+  ├─ build_html_dashboard   → assembles everything into a standalone HTML page
+  ├─ publish_to_github_pages → commits the page to docs/ in the repo
+  └─ (Telegram notification with a preview + link)
+        │
+        ▼
+GitHub Pages serves docs/ as the live site — both the generator
+form (index.html) and every published production page live here.
 
-A separate, second Pipedream workflow (its own HTTP trigger) handles deletes — see **Delete workflow setup** below.
+Deleting a production goes through a separate, minimal workflow:
 
----
+Generator page → Pipedream WF2 — Delete Production (its own HTTP trigger)
+  └─ delete_production → verifies a shared secret, then removes the
+     file from GitHub via the Contents API. The GitHub token never
+     touches the browser.
+```
 
-## Recent Fixes
-
-- **Root cause of "workflow doesn't produce a new package"** — `generate_master_script` was calling Groq with `model: 'llama-3.3-70b-versatile'`, which Groq deprecated on the free tier. Every generation request failed with a `404` at that step, so nothing downstream (`generate_storyboard_images`, `build_html_dashboard`, `publish_to_github_pages`) ever ran — that's why the archive stayed frozen at the same productions for months even though the generator "succeeded" from the front end's point of view. Fixed by switching to **`openai/gpt-oss-120b`** and adding `response_format: { type: 'json_object' }` so Groq returns clean JSON instead of relying only on the prompt instruction (see `generate_master_script.mjs`).
-- **Topic mismatch (generated output used a template topic instead of what was typed)** — turned out to be a symptom of the bug above, not a separate prompt issue: because generation was silently failing, what people saw was actually an old cached production from the archive, not a fresh result. The generator form also used to ship with `The Future of AI Agents in 2026` pre-filled directly into the topic textarea's value (not just a placeholder) — that's removed too, so the field is genuinely empty and only shows placeholder text.
-- **`Cannot read properties of undefined (reading '$return_value')`** — happens when `generate_master_script` runs without `parse_request`'s output available (e.g. testing the step in isolation instead of triggering the full workflow). Added a guard clause that throws a clear, actionable error instead of a raw `TypeError` if this happens again.
-- **Storyboard images not loading** — fixed directly in a real production page (`vid-mpfder6g-fixed.html`) using the skeleton-loading + graceful-fallback pattern already applied to the VICE-AI and Personal BOS dashboards. Apply the same `<img>` markup pattern inside the `build_html_dashboard` step so every *newly generated* production gets it automatically, not just this one file.
-- **Model update** — Groq deprecated `llama-3.3-70b-versatile` on the free/developer tier. Script generation now uses **`openai/gpt-oss-120b`** — Groq's officially recommended free-tier replacement, and it benchmarks above the old Llama 3.3 70B on reasoning and writing quality while running faster on Groq's hardware. Badges and footer on the generator page are updated to match.
-- **Sort by date + delete** — see the new features section right below.
+Everything — the generator, the archive, and every generated production — is served from **one place**: the `docs/` folder of this repo via GitHub Pages. There's no separate front-end host to keep in sync; a commit to `docs/` (whether from you or from the pipeline) is live within seconds.
 
 ---
 
-## New: Sort by date & delete productions
+## Production Archive Features
 
-The Production Archive on the generator page now:
-
-- **Sorts by date** — a "Newest first / Oldest first" dropdown above the grid. Each production's real publish date is read from the `Production ID: VID-XXXX - <date>` line embedded in its own page (fetched once per page load), not guessed from the filename.
-- **Deletes productions** — a small ✕ button on each card. Deleting a production calls a **separate** Pipedream workflow (`delete_production.mjs`) that removes the file from the GitHub repo server-side. The GitHub token never touches the browser.
-
-### Delete workflow setup (one-time)
-
-1. In Pipedream, create a **new** workflow (don't add this to WF1) with an **HTTP / Webhook trigger**.
-2. Add one Node.js code step using `delete_production.mjs`.
-3. Set env vars on that workflow: `GITHUB_TOKEN` (same token WF1 uses, needs write/delete access to the repo) and `DELETE_SECRET` (any random string you pick).
-4. Deploy it, copy its trigger URL.
-5. In `index.html`, set `DELETE_WEBHOOK_URL` to that URL and `DELETE_SECRET` to the same string from step 3.
-
-> Heads up: a secret embedded in front-end JavaScript is visible to anyone who views page source — this stops accidental/casual deletes, it isn't real authentication. Fine for a personal portfolio project; don't reuse this pattern for anything that needs real access control.
+- **Thumbnails** — each card shows the first storyboard image from that production
+- **Sort by date** — Newest first / Oldest first, read from the real publish date embedded in each page
+- **Delete** — a ✕ on each card, or check multiple cards and use **Delete Selected** to remove several at once
+- **Resilient images** — storyboard images show a loading skeleton and fall back to a clear "Image unavailable" message if Pollinations.ai fails or hangs (capped at 15s so nothing loads forever)
 
 ---
 
 ## Tech Stack
 
-| Category | Tools |
+| Category | Tool |
 |---|---|
-| Workflow Automation | Pipedream |
-| Script & Prompt Generation | Groq AI (`openai/gpt-oss-120b`) |
-| Image Generation | Pollinations.ai |
-| Publishing | GitHub Pages (`docs/` folder) |
-| Generator Front End | Netlify (static HTML/JS) |
+| Workflow automation | Pipedream |
+| Script generation | Groq AI — `openai/gpt-oss-120b` |
+| Image generation | Pollinations.ai |
+| Hosting (generator + archive + productions) | GitHub Pages (`docs/`) |
+| Notifications | Telegram Bot API |
 
-**Cost: $0/month** — 100% free tier infrastructure
+**Cost: $0/month** — entirely free-tier infrastructure, no separate static host needed.
 
 ---
 
 ## Environment Variables
 
-### WF1 — Video Script Factory
+**WF1 — Video Script Factory**
+```
+GROQ_API_KEY        = gsk_xxxx
+GROQ_MODEL          = openai/gpt-oss-120b
+GITHUB_TOKEN        = ghp_xxxx        (needs write access to the repo)
+GITHUB_REPO         = Tama260/Video-Script-Factory
+TELEGRAM_BOT_TOKEN  = xxxx:xxxx
+TELEGRAM_CHAT_ID    = -100xxxxxxx
+```
 
-GROQ_API_KEY   = gsk_xxxx
-GROQ_MODEL     = openai/gpt-oss-120b
-GITHUB_TOKEN   = ghp_xxxx
-GITHUB_REPO    = Tama260/Video-Script-Factory
-TELEGRAM_BOT_TOKEN = xxxx:xxxx
-TELEGRAM_CHAT_ID   = -100xxxxxxx
+**WF2 — Delete Production** (separate workflow)
+```
+GITHUB_TOKEN   = ghp_xxxx        (same token, needs delete permission)
+DELETE_SECRET  = vsf-delete-x7k2m9   (must match DELETE_SECRET in index.html)
+```
 
-### WF2 — Delete Production (new)
-
-GITHUB_TOKEN   = ghp_xxxx   (same token as above, needs delete permission)
-DELETE_SECRET  = any-random-string-you-pick
+> A secret shipped in front-end JavaScript is visible to anyone who views page source — it stops accidental/casual deletes, it isn't real access control. Fine for a personal project; don't reuse the pattern anywhere that needs real authentication.
 
 ---
 
-## Known maintenance items to check periodically
+## Known maintenance items
 
-- **Groq model deprecations**: check `console.groq.com/docs/deprecations` every few months and re-point `GROQ_MODEL` if `openai/gpt-oss-120b` is ever retired. When this happens, `generate_master_script` fails with a 404 and the whole pipeline silently stops producing new pages — check this first if productions stop appearing again.
-- **Topic interpolation**: if generated pages ever again show a topic you didn't type, first confirm generation actually succeeded (check WF1's Live Events) — the last time this happened, it was really the 404 issue above, not a prompt problem.
-- **Storyboard image fallback**: apply the skeleton/fallback `<img>` pattern (see `vid-mpfder6g-fixed.html`) inside `build_html_dashboard` so it's baked into every new production automatically.
-- **Delete workflow**: keep `DELETE_SECRET` in sync between WF2's env var and `index.html` — if you rotate one, rotate the other.
+- **Groq model deprecations** — Groq periodically retires free-tier models (this happened once already with `llama-3.3-70b-versatile`, which silently broke every generation with a 404). Check `console.groq.com/docs/deprecations` occasionally and update `GROQ_MODEL` if `openai/gpt-oss-120b` is ever retired.
+- **`$.respond()` in WF2 must be `await`ed** — Pipedream returns a generic "Error in workflow" response if it isn't, even when the deletion itself succeeds.
+- **Pollinations.ai reliability** — the free/unauthenticated endpoint occasionally hangs or fails under load; the 15s watchdog in `build_html_dashboard` handles this gracefully, but registering a free key at `auth.pollinations.ai` is worth considering if failures become frequent.
+- **Keep `DELETE_SECRET` in sync** between WF2's env var and `index.html` — rotate both together.
 
 ---
 
@@ -136,4 +125,4 @@ AI Automation Engineer | Banten, Indonesia
 
 ---
 
-*Built with Groq AI (openai/gpt-oss-120b) · Pipedream · Pollinations.ai · GitHub Pages · Netlify*
+*Built with Groq AI (openai/gpt-oss-120b) · Pipedream · Pollinations.ai · GitHub Pages*
